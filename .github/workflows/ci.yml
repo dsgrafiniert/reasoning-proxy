@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Download tiktoken BPE
+        run: |
+          mkdir -p testdata
+          curl -sL https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken -o testdata/cl100k_base.tiktoken || true
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build -ldflags="-s -w" -trimpath -o /dev/null .
+
+      - name: Docker build
+        run: docker build -t reasoning-proxy:ci .

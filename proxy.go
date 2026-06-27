@@ -21,7 +21,7 @@ type Proxy struct {
 	counter      Counter
 }
 
-func NewProxy(cfg Config) *Proxy {
+func NewProxy(cfg Config, counter Counter) *Proxy {
 	backendURL, err := url.Parse(cfg.BackendURL)
 	if err != nil {
 		log.Fatalf("invalid VLLM_URL: %v", err)
@@ -42,7 +42,7 @@ func NewProxy(cfg Config) *Proxy {
 		backendURL:   backendURL,
 		client:       &http.Client{Transport: transport},
 		reverseProxy: rp,
-		counter:      NewHeuristicCounter(cfg.CharsPerToken),
+		counter:      counter,
 	}
 }
 

@@ -14,17 +14,21 @@ import (
 type Config struct {
 	ListenAddr    string
 	BackendURL    string
-	CharsPerToken float64
 	AddToTotals   bool
+	Tokenizer     TokenizerConfig
 }
 
 func loadConfig() Config {
-	return Config{
-		ListenAddr:    getenv("PROXY_LISTEN", ":8080"),
-		BackendURL:    getenv("VLLM_URL", "http://localhost:8000"),
-		CharsPerToken: getenvFloat("CHARS_PER_TOKEN", 3.5),
-		AddToTotals:   getenvBool("ADD_TO_TOTALS", false),
+	cfg := Config{
+		ListenAddr:  getenv("PROXY_LISTEN", ":8080"),
+		BackendURL:  getenv("VLLM_URL", "http://localhost:8000"),
+		AddToTotals: getenvBool("ADD_TO_TOTALS", false),
+		Tokenizer: TokenizerConfig{
+			Type: TokenizerType(getenv("TOKENIZER_TYPE", "tiktoken")),
+			Path: getenv("TOKENIZER_PATH", "cl100k_base"),
+		},
 	}
+	return cfg
 }
 
 func main() {
@@ -33,7 +37,10 @@ func main() {
 		log.Fatal("VLLM_URL is required")
 	}
 
-	proxy := NewProxy(cfg)
+	counter := NewCounter(cfg.Tokenizer)
+	log.Printf("tokenizer: type=%s path=%s", cfg.Tokenizer.Type, cfg.Tokenizer.Path)
+
+	proxy := NewProxy(cfg, counter)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -69,15 +76,6 @@ func main() {
 func getenv(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
-	}
-	return def
-}
-
-func getenvFloat(key string, def float64) float64 {
-	if v := os.Getenv(key); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			return f
-		}
 	}
 	return def
 }
